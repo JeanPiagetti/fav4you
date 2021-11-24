@@ -1,5 +1,6 @@
 import 'package:fav4you/app/models/video.dart';
 import 'package:fav4you/app/services/api.dart';
+import 'package:fav4you/app/views/player/player.dart';
 import 'package:flutter/material.dart';
 
 class ListVideos extends StatefulWidget {
@@ -10,8 +11,8 @@ class ListVideos extends StatefulWidget {
 }
 
 class _ListVideosState extends State<ListVideos> {
-  static Api api = Api();
-  final Future<List<Video>> _videos = api.nextPage();
+  static Api api = Api.instance;
+  Future<List<Video>> _videos = api.fetchVideos();
 
   @override
   Widget build(BuildContext context) {
@@ -21,15 +22,40 @@ class _ListVideosState extends State<ListVideos> {
           List<Widget> children;
           if (snapshot.hasData) {
             children = <Widget>[
-              const Icon(
-                Icons.check_circle_outline,
-                color: Colors.green,
-                size: 60,
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Text('Result: ${snapshot.data}'),
-              )
+               TextField(
+                  decoration: const InputDecoration(
+                    contentPadding: EdgeInsets.all(16),
+                    hintText: 'Buscar vídeos',
+                  ),
+                  onChanged: (string) {
+                    _videos = api.findOne(string);
+                  }
+                ),
+              Expanded(
+                child: SizedBox(
+                  height: 200.0,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                      child: ListView.builder(
+                        itemBuilder: (context, index) => 
+                        ListTile(
+                          title: Text('${snapshot.data?[index].title}'),
+                          leading: const Icon(Icons.play_arrow),
+                          onTap: () {
+                            // close(context, data[index]);
+                            
+                             Navigator.push<void>(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                    builder: (BuildContext context) =>  Player(id: '${snapshot.data?[index].id}'),
+                                  ),
+                                );
+                                                        },
+                  ),
+                  itemCount: snapshot.data!.length,
+                  ),
+                ))
+                ),
             ];
           } else if (snapshot.hasError) {
             children = <Widget>[

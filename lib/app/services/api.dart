@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:fav4you/app/models/video.dart';
 import 'package:fav4you/app/shared/utils/constants.dart';
@@ -6,35 +7,94 @@ import 'package:http/http.dart' as http;
 
 
 class Api {
-  String? _search;
-  String? _nextToken;
-
-  Future<List<Video>> search(String search) async {
-    _search = search;
-
-    http.Response resp = await http.get(Uri.parse(
-        "https://www.googleapis.com/youtube/v3/search?part=snippet&q=&type=video&key=$API_KEY&maxResults=10"));
     
-    return decode(resp);
-  }
+    final String _baseUrl = 'www.googleapis.com';
+    String _nextPageToken = '';
 
-  Future<List<Video>> nextPage() async {
-    http.Response resp = await http.get(Uri.parse(
-        "https://www.googleapis.com/youtube/v3/search?part=snippet&q=$_search&type=video&key=$API_KEY&maxResults=10&pageToken=$_nextToken"));
-    print(resp.body);
-    return decode(resp);
-  }
+    Api._instantiate();
+    static final Api instance = Api._instantiate();
 
-  List<Video> decode(http.Response response) {
+  Future<List<Video>> fetchVideos() async {
+    Map<String, String> parameters = {
+      'part': 'snippet',
+      'maxResults': '10',
+      'chart':'mostPopular',
+      'pageToken': _nextPageToken,
+      'key': API_KEY,
+    };
+    Uri uri = Uri.https(
+      _baseUrl,
+      '/youtube/v3/videos',
+      parameters,
+    );
+    Map<String, String> headers = {
+      HttpHeaders.contentTypeHeader: 'application/json',
+    };
+    var response = await http.get(uri, headers: headers);
     if (response.statusCode == 200) {
-      final decoded = json.decode(response.body);
-      _nextToken = decoded['nextPageToken'];
-      List<Video> videos =
-          decoded['items'].map<Video>((item) => Video.fromJson(item)).toList();
+      var data = json.decode(response.body);
+      
+      _nextPageToken = data['nextPageToken'] ?? '';
+      List<dynamic> videosJson = data['items'];
 
+      // Fetch first eight videos from uploads playlist
+      List<Video> videos = [];
+      videosJson.forEach((json) => videos.add(
+          Video.fromJson(json)));
       return videos;
+    } else {
+      throw json.decode(response.body)['error']['message'];
     }
-
-    throw new Exception('${json.decode(response.body)['error']['message']}');
   }
+
+  Future<List<Video>> findOne(String videoId) async {
+    Map<String, String> parameters = {
+      'part': 'snippet',
+      'maxResults': '10',
+      'search': videoId,
+      'pageToken': _nextPageToken,
+      'key': API_KEY,
+    };
+    Uri uri = Uri.https(
+      _baseUrl,
+      '/youtube/v3/search',
+      parameters,
+    );
+    Map<String, String> headers = {
+      HttpHeaders.contentTypeHeader: 'application/json',
+    };
+    var response = await http.get(uri, headers: headers);
+    if (response.statusCode == 200) {
+      var data = json.decode(response.body);
+
+      _nextPageToken = data['nextPageToken'] ?? '';
+      List<dynamic> videosJson = data['items'];
+
+      // Fetch first eight videos from uploads playlist
+      List<Video> videos = [];
+      videosJson.forEach(
+        (json) => videos.add(
+          Video.fromJson(json['snippet']),
+        ),
+      );
+      return videos;
+    } else {
+      throw json.decode(response.body)['error']['message'];
+    }
+  }
+  
+  Future<List<Video>> findAll() async {
+    http.Response resp = await http.get(Uri.parse(
+        '$BASE_URL/search?part=snippet&q=&type=video&key=$API_KEY&maxResults=10'));
+        
+    if(resp.statusCode == 200){
+      Iterable list = json.decode(resp.body)['items'];
+      List<Video> videos = list.map((e) => Video.fromJson(e)).toList();
+      return videos;
+    } else {
+      throw Exception('Erro na requisição');
+    }
+    
+  }
+
 }

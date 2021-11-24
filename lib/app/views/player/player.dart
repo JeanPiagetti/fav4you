@@ -1,3 +1,4 @@
+import 'package:fav4you/app/shared/components/app_bar/app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
@@ -30,7 +31,10 @@ class _PlayerState extends State<Player> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar:  const PreferredSize(
+                preferredSize: Size.fromHeight(kToolbarHeight),
+                child: AppBarComponent(centerTitle: true,title: 'Fav4You')
+                ),
       body: YoutubePlayer(
         controller: _controller,
         showVideoProgressIndicator: true,
